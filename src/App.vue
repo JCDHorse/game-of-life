@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import HelloWorld from './components/HelloWorld.vue'
-import GameOfView from "./components/GameOfView.vue";
+import ViewOfLife from "./components/ViewOfLife.vue";
 </script>
 
 <template>
-  <GameOfView/>
+  <ViewOfLife/>
 </template>
 
 <style scoped>

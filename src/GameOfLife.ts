@@ -11,16 +11,16 @@ export default class GameOfLife {
         { x: -1, y: 1  },   { x: 0, y: 1  },    { x: 1, y: 1  },
     ];
 
+
     private readonly width: number;
     private readonly height: number;
     private readonly grid: boolean[][];
 
-    public constructor(width: number, height: number) {
+    public constructor(width: number, height: number, density: number = 0.5) {
         this.width = width;
         this.height = height;
-        this.grid = Array.from({ length: height }, () =>
-            Array.from({ length: width }, () => false)
-        );
+        this.grid = this.initGrid();
+        this.randomGame(density);
     }
 
     public tick(): void {
@@ -31,18 +31,26 @@ export default class GameOfLife {
         }
     }
 
+    public randomGame(density: number = 0.5) {
+        for (let i = 0; i < this.height; i++) {
+            for (let j = 0; j < this.width; j++) {
+                this.setCellState(j, i, Math.random() < density);
+            }
+        }
+    }
+
     public cellState(x: number, y: number): boolean {
         if (!this.isInBounds(x, y)) {
             throw new Error("cellState: Cell coordinates out of bounds");
         }
-        return this.grid[y][x];
+        return this.grid[y]![x]!;
     }
 
     public setCellState(x: number, y: number, state: boolean): void {
         if (!this.isInBounds(x, y)) {
             throw new Error("setCellState: Cell coordinates out of bounds");
         }
-        this.grid[y][x] = state;
+        this.grid[y]![x]! = state;
     }
 
     private isInBounds(x: number, y: number): boolean {
@@ -81,6 +89,12 @@ export default class GameOfLife {
             }
         }
         return neighbours;
+    }
+
+    private initGrid(): boolean[][] {
+        return Array.from({ length: this.height }, () =>
+            Array.from({ length: this.width }, () => false)
+        );
     }
 
 }
