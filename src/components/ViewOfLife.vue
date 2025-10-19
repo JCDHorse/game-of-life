@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 
-import {ref, onMounted, computed, watch} from 'vue';
+import {ref, onMounted, computed, watch, useTemplateRef} from 'vue';
 import GameOfLife from '../GameOfLife';
 
 const canvasWidth = ref(600);
@@ -12,12 +12,15 @@ const density = computed(() => densityRange.value / 100);
 const cellSizeRange = ref(50);
 const cellSize = computed(() => Math.floor(cellSizeRange.value / 3) );
 
+const stepMode = ref(false);
 const ticksPerSecond = ref(24);
 
 const canvas = ref<HTMLCanvasElement | null>(null);
 
 const width = computed(() => Math.floor(canvasWidth.value / cellSize.value));
 const height = computed(() => Math.floor(canvasHeight.value / cellSize.value));
+
+const restartEvent = ref();
 
 let game = ref(new GameOfLife(width.value, height.value, density.value));
 
@@ -38,9 +41,6 @@ function draw(ctx: CanvasRenderingContext2D) {
   }
 }
 
-watch([cellSize, density], () => {
-  game.value = new GameOfLife(width.value, height.value, density.value);
-});
 
 onMounted(() => {
   if (!canvas.value) return;
@@ -49,18 +49,49 @@ onMounted(() => {
 
   let lastTick = performance.now();
 
+  function step(now: number) {
+    game.value.tick();
+    draw(ctx!);
+    lastTick = now;
+  }
+
+  function restartGame() {
+    const now = performance.now();
+    game.value.randomGame(density.value);
+    step(now);
+  }
+
   function loop() {
     const tickInterval = 1000 / ticksPerSecond.value; // temps entre chaque tick en ms
-    const now = performance.now();
 
-    if (now - lastTick >= tickInterval) {
-      game.value.tick();
-      lastTick = now;
+    const now = performance.now();
+    if (!stepMode.value && now - lastTick >= tickInterval) {
+      step(now);
     }
 
-    draw(ctx!);
     requestAnimationFrame(loop);
   }
+
+  restartEvent.value = restartGame;
+
+  document.addEventListener('keypress', (e) => {
+    const now = performance.now();
+    if (e.code === 'Space') {
+      if (stepMode.value) {
+        step(now);
+      }
+    }
+  });
+
+  watch(stepMode, () => {
+    draw(ctx);
+  });
+
+  watch([cellSize, density], () => {
+    game.value = new GameOfLife(width.value, height.value, density.value);
+    draw(ctx);
+  });
+
 
   loop();
 });
@@ -68,9 +99,12 @@ onMounted(() => {
 
 <template>
   <div id="godOfLife">
-    <div><label>FPS: </label><input type="range" v-model="ticksPerSecond"/></div>
-    <div><label>Cell size: </label><input type="range" v-model="cellSizeRange" @change="console.log(cellSize)"/></div>
+    <div><label>Step mode: <input type="checkbox" v-model="stepMode"></label></div>
+    <div><label>FPS: </label><input type="range" v-model="ticksPerSecond"/><p>{{ticksPerSecond}}</p></div>
+    <div><label>Cell size: </label><input type="range" v-model="cellSizeRange" /></div>
     <div><label>Density: </label><input type="range" v-model="densityRange"/></div>
+    <button @click="restartEvent" >Restart</button>
+
   </div>
   <div id="viewOfLife">
     <canvas ref="canvas" :width="canvasWidth" :height="canvasHeight"></canvas>

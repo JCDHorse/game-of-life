@@ -1,8 +1,4 @@
-type LifeChange = {
-    x: number;
-    y: number;
-    newState: boolean;
-}
+type bufferIndex = 1 | 2;
 
 export default class GameOfLife {
     private static readonly NEIGHBOURS_OFFSETS: { x: number; y: number }[] = [
@@ -11,27 +7,29 @@ export default class GameOfLife {
         { x: -1, y: 1  },   { x: 0, y: 1  },    { x: 1, y: 1  },
     ];
 
-
     private readonly width: number;
     private readonly height: number;
-    private readonly grid: boolean[][];
+
+    private readonly buffer1: boolean[][];
+    private readonly buffer2: boolean[][];
+    private currentBuffer: bufferIndex;
 
     public constructor(width: number, height: number, density: number = 0.5) {
         this.width = width;
         this.height = height;
-        this.grid = this.initGrid();
+        this.currentBuffer = 1;
+        this.buffer1 = this.initGrid();
+        this.buffer2 = this.initGrid();
         this.randomGame(density);
     }
 
     public tick(): void {
-        const changes = this.getChanges();
-
-        for (let change of changes) {
-            this.setCellState(change.x, change.y, change.newState);
-        }
+        this.prepareNextBuffer();
+        this.switchBuffer();
     }
 
     public randomGame(density: number = 0.5) {
+        this.currentBuffer = 1;
         for (let i = 0; i < this.height; i++) {
             for (let j = 0; j < this.width; j++) {
                 this.setCellState(j, i, Math.random() < density);
@@ -39,43 +37,26 @@ export default class GameOfLife {
         }
     }
 
+    public getGrid(): boolean[][] {
+        return this.getBuffer();
+    }
+
     public cellState(x: number, y: number): boolean {
         if (!this.isInBounds(x, y)) {
-            throw new Error("cellState: Cell coordinates out of bounds");
+            throw new Error(`cellState: Cell coordinates out of bounds {x: ${x}, y: ${y}, w: ${this.width}, h: ${this.height}`);
         }
-        return this.grid[y]![x]!;
+        return this.getBuffer()[y]![x]!;
     }
 
     public setCellState(x: number, y: number, state: boolean): void {
         if (!this.isInBounds(x, y)) {
-            throw new Error("setCellState: Cell coordinates out of bounds");
+            throw new Error(`setCellState: Cell coordinates out of bounds {x: ${x}, y: ${y}, w: ${this.width}, h: ${this.height}`);
         }
-        this.grid[y]![x]! = state;
+        this.getBuffer()[y]![x]! = state;
     }
 
     private isInBounds(x: number, y: number): boolean {
         return x >= 0 && x < this.width && y >= 0 && y < this.height;
-    }
-
-    private getChanges(): LifeChange[] {
-        const changes: LifeChange[] = [];
-
-        for (let y = 0; y < this.height; y++) {
-            for (let x = 0; x < this.width; x++) {
-                let neighbours = this.countNeighbours(x, y);
-                if (this.cellState(x, y)) {
-                    if (neighbours < 2 || neighbours > 3) {
-                        changes.push({ x: x, y: y, newState: false });
-                    }
-                }
-                else {
-                    if (neighbours == 3) {
-                        changes.push({ x: x, y: y, newState: true });
-                    }
-                }
-            }
-        }
-        return changes;
     }
 
     private countNeighbours(x: number, y: number): number {
@@ -91,10 +72,41 @@ export default class GameOfLife {
         return neighbours;
     }
 
+    private prepareNextBuffer() {
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                const neighbours = this.countNeighbours(x, y);
+                const alive = this.cellState(x, y);
+                this.getNextBuffer()[y]![x]! = alive ? neighbours == 2 || neighbours == 3 : neighbours == 3;
+            }
+        }
+    }
+
+    private switchBuffer() {
+        this.currentBuffer = this.currentBuffer == 1 ? 2 : 1;
+    }
+
     private initGrid(): boolean[][] {
         return Array.from({ length: this.height }, () =>
             Array.from({ length: this.width }, () => false)
         );
     }
 
+    private getBuffer() {
+        switch (this.currentBuffer) {
+            case 1:
+                return this.buffer1;
+            case 2:
+                return this.buffer2;
+        }
+    }
+
+    private getNextBuffer(): boolean[][] {
+        switch (this.currentBuffer) {
+            case 1:
+                return this.buffer2;
+            case 2:
+                return this.buffer1;
+        }
+    }
 }
