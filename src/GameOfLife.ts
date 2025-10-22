@@ -1,12 +1,6 @@
 type bufferIndex = 1 | 2;
 
 export default class GameOfLife {
-    private static readonly NEIGHBOURS_OFFSETS: { x: number; y: number }[] = [
-        { x: -1, y: -1 },   { x: 0, y: -1 },    { x: 1, y: -1 },
-        { x: -1, y: 0  },                       { x: 1, y: 0  },
-        { x: -1, y: 1  },   { x: 0, y: 1  },    { x: 1, y: 1  },
-    ];
-
     private readonly width: number;
     private readonly height: number;
 
@@ -59,25 +53,52 @@ export default class GameOfLife {
         return x >= 0 && x < this.width && y >= 0 && y < this.height;
     }
 
-    private countNeighbours(x: number, y: number): number {
-        let neighbours = 0;
-        for (const offset of GameOfLife.NEIGHBOURS_OFFSETS) {
-            const cellY = y + offset.y;
-            const cellX = x + offset.x;
-            if (this.isInBounds(cellX, cellY)) {
-                let cell = this.cellState(cellX, cellY);
-                neighbours += +cell;
-            }
-        }
-        return neighbours;
-    }
+//    private countNeighbours(x: number, y: number): number {
+//        let neighbours = 0;
+//        for (const offset of GameOfLife.NEIGHBOURS_OFFSETS) {
+//            const cellY = y + offset.y;
+//            const cellX = x + offset.x;
+//            let cell = this.getBuffer()[cellY]![cellX]!;
+//            neighbours += +cell;
+//        }
+//        return neighbours;
+//    }
 
     private prepareNextBuffer() {
-        for (let y = 0; y < this.height; y++) {
-            for (let x = 0; x < this.width; x++) {
-                const neighbours = this.countNeighbours(x, y);
-                const alive = this.cellState(x, y);
-                this.getNextBuffer()[y]![x]! = alive ? neighbours == 2 || neighbours == 3 : neighbours == 3;
+        const curr = this.getBuffer();
+        const next = this.getNextBuffer();
+        const w = this.width;
+        const h = this.height;
+
+        for (let y = 0; y < h; y++) {
+            const currRow = curr[y]!;
+            const nextRow = next[y]!;
+
+            for (let x = 0; x < w; x++) {
+                let neighbours = 0;
+
+                // Ligne du haut (y-1)
+                if (y > 0) {
+                    const topRow = curr[y - 1]!;
+                    if (x > 0 && topRow[x - 1]) neighbours++;
+                    if (topRow[x]) neighbours++;
+                    if (x < w - 1 && topRow[x + 1]) neighbours++;
+                }
+
+                // Ligne du milieu (y)
+                if (x > 0 && currRow[x - 1]) neighbours++;
+                if (x < w - 1 && currRow[x + 1]) neighbours++;
+
+                // Ligne du bas (y+1)
+                if (y < h - 1) {
+                    const botRow = curr[y + 1]!;
+                    if (x > 0 && botRow[x - 1]) neighbours++;
+                    if (botRow[x]) neighbours++;
+                    if (x < w - 1 && botRow[x + 1]) neighbours++;
+                }
+
+                const alive = currRow[x];
+                nextRow[x] = alive ? (neighbours === 2 || neighbours === 3) : (neighbours === 3);
             }
         }
     }
